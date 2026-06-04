@@ -84,6 +84,7 @@ def handle_client(conn, addr):
                 tipe_file = get_content_type(filename)
 
                 header = (
+                    # "RUSAK/1.1 200 OK\r\n" # Ini untuk test 502 Error
                     "HTTP/1.1 200 OK\r\n"
                     f"Content-Type: {tipe_file}\r\n"
                     f"Content-Length: {len(content)}\r\n"
