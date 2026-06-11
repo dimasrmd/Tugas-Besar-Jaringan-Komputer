@@ -153,17 +153,33 @@ def tcp_server():
     server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_sock.bind((HOST, PORT_TCP))
     server_sock.listen(10)
+    
+    # Set timeout agar blocking accept() tidak hang (membantu menangkap sinyal Ctrl+C di Windows)
+    server_sock.settimeout(1.0)
     log("TCP", "START", f"HTTP Server berjalan di port {PORT_TCP}")
 
-    while True:
-        conn, addr = server_sock.accept()
-        t = threading.Thread(
-            target=handle_client,
-            args=(conn, addr),
-            daemon=True
-        )
-        t.start()
-        log("TCP", "THREAD", f"Thread baru spawned. Aktif: {threading.active_count() - 1}")
+    try:
+        while True:
+            try:
+                conn, addr = server_sock.accept()
+                
+                # Setelah accept berhasil, pastikan socket client tidak ikut memiliki timeout (kembalikan ke mode blocking)
+                conn.settimeout(None)
+                
+                t = threading.Thread(
+                    target=handle_client,
+                    args=(conn, addr),
+                    daemon=True
+                )
+                t.start()
+                log("TCP", "THREAD", f"Thread baru spawned. Aktif: {threading.active_count() - 1}")
+            except socket.timeout:
+                # Terjadi timeout, lanjutkan loop dan periksa sinyal (seperti Ctrl+C)
+                continue
+    except KeyboardInterrupt:
+        log("TCP", "STOP", "Menerima sinyal Ctrl+C, mematikan server...")
+    finally:
+        server_sock.close()
 
 # ============================================================
 # UDP SERVER — echo server untuk QoS testing
